@@ -1,0 +1,32 @@
+name: Sync Fork
+
+on:
+  schedule:
+    - cron: '0 4 * * *'  # 每天凌晨 2 点同步一次
+  workflow_dispatch:     # 允许手动触发
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout forked repo
+        uses: actions/checkout@v4
+        with:
+          ref: main  # 替换为你默认分支的名字，如 master
+
+      - name: Set up Git
+        run: |
+          git config user.name 'github-actions'
+          git config user.email 'github-actions@github.com'
+
+      - name: Add upstream remote
+        run: git remote add upstream https://github.com/dawnvince/EasyTSAD.git
+
+      - name: Fetch upstream changes
+        run: git fetch upstream
+
+      - name: Merge upstream changes
+        run: git merge upstream/main --allow-unrelated-histories || true  # 根据 upstream 分支修改
+
+      - name: Push changes to fork
+        run: git push origin main
