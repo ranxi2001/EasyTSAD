@@ -9,16 +9,16 @@ if __name__ == "__main__":
         
     """============= [DATASET SETTINGS] ============="""
     # Specifying datasets
-    datasets = ["SMD", "SWaT", "WADI", "SMAP", "MSL", "PSM"]
-    datasets = ["WADI"]
+    datasets = ["machine-1", "machine-2", "machine-3"]
+    # datasets = ["TODS"]
     dataset_types = "MTS"
-    
+    #
     # set datasets path, dirname is the absolute/relative path of dataset.
     
     # Use all curves in datasets:
     gctrl.set_dataset(
         dataset_type="MTS",
-        dirname="/path/to/datasets",
+        dirname="../../datasets",
         datasets=datasets,
     )
 
