@@ -26,7 +26,7 @@ if __name__ == "__main__":
     from EasyTSAD.Methods import BaseMethod
     from EasyTSAD.DataFactory import MTSData
 
-    class MTSExample(BaseMethod):  #这里不用继承BaseMethod也可以，但继承后可以使用EasyTSAD的接口
+    class MTSTimesNet(BaseMethod):  #这里不用继承BaseMethod也可以，但继承后可以使用EasyTSAD的接口
         def __init__(self, params:dict) -> None:
             super().__init__()
             self.__anomaly_score = None
