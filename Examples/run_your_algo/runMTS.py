@@ -18,7 +18,8 @@ if __name__ == "__main__":
     # Use all curves in datasets:
     gctrl.set_dataset(
         dataset_type="MTS",
-        dirname="../../datasets",
+        # dirname="../../datasets",
+        dirname="./datasets", # 项目根目录中的相对路径 就是当前路径
         datasets=datasets,
     )
 

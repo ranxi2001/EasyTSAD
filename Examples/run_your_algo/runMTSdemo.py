@@ -18,7 +18,7 @@ if __name__ == "__main__":
     # Use all curves in datasets:
     gctrl.set_dataset(
         dataset_type="MTS",
-        dirname="../../datasets",
+        dirname="./datasets",
         datasets=datasets,
     )
 
