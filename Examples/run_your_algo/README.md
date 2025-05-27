@@ -1,7 +1,6 @@
 pip install EasyTSAD
 pip install statsmodels
-cd Examples/run_your_algo
-pip install -r requirements.txt
+pip install -r ./Examples/run_your_algo/requirements.txt
 
 `BaseMethod` 作为 `MTSExample` 的父类（通过继承）是因为 Python 支持**类继承**，这是一种面向对象编程的核心特性。通过继承，`MTSExample` 可以复用 `BaseMethod` 中的属性和方法，同时可以扩展或重写它的功能。
 

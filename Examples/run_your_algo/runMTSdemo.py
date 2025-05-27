@@ -32,7 +32,6 @@ if __name__ == "__main__":
             self.__anomaly_score = None
             
         def train_valid_phase(self, tsData):
-
             print(tsData.train.shape)
             pass
             
@@ -50,7 +49,7 @@ if __name__ == "__main__":
             return self.__anomaly_score
         
         def param_statistic(self, save_file):
-            param_info = "Your Algo. info"
+            param_info = "MTSTimesNet Algo. info"
             with open(save_file, 'w') as f:
                 f.write(param_info)
     
@@ -58,7 +57,7 @@ if __name__ == "__main__":
     # Specifying methods and training schemas
 
     training_schema = "mts"
-    method = "MTSExample"  # string of your algo class
+    method = "MTSTimesNet"  # string of your algo class
     
     # run models
     gctrl.run_exps(
