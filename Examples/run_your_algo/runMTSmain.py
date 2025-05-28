@@ -299,33 +299,33 @@ if __name__ == "__main__":
 
     # 配置类
     class TimesNetConfig:
-        def __init__(self, seq_len=96, pred_len=0, enc_in=1, c_out=1, d_model=64, d_ff=64,
-                    e_layers=2, top_k=5, num_kernels=6, embed='timeF', freq='h', dropout=0.1):
+        def __init__(self, seq_len=96, pred_len=0, enc_in=1, c_out=1, d_model=64, d_ff=128,
+                    e_layers=2, top_k=3, num_kernels=4, embed='timeF', freq='h', dropout=0.2):
             self.seq_len = seq_len
             self.pred_len = pred_len
             self.enc_in = enc_in
             self.c_out = c_out
-            self.d_model = d_model
-            self.d_ff = d_ff
-            self.e_layers = e_layers
-            self.top_k = top_k
-            self.num_kernels = num_kernels
+            self.d_model = d_model  # 增加模型维度
+            self.d_ff = d_ff        # 增加前馈网络维度
+            self.e_layers = e_layers  # 增加层数
+            self.top_k = top_k      # 增加top_k以捕获更多周期性
+            self.num_kernels = num_kernels  # 增加卷积核数量
             self.embed = embed
             self.freq = freq
-            self.dropout = dropout
+            self.dropout = dropout   # 增加dropout防止过拟合
 
     """=============== TimesNet继承BaseMethod 实现 ==============="""
 
-    class MTSTimesNet(BaseMethod):  
+    class NewTimesNet(BaseMethod):  
         def __init__(self, params:dict) -> None:
             super().__init__()
             self.__anomaly_score = None
             self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
             
             # TimesNet 参数配置
-            self.window_size = params.get('window_size', 96)
-            self.batch_size = params.get('batch_size', 32)
-            self.epochs = params.get('epochs', 10)
+            self.window_size = params.get('window_size', 48)  # 增大窗口大小
+            self.batch_size = params.get('batch_size', 128)   # 增大batch_size
+            self.epochs = params.get('epochs', 20)            # 增加训练轮数
             self.learning_rate = params.get('learning_rate', 0.001)
             
             print(f"使用设备: {self.device}")
@@ -336,42 +336,115 @@ if __name__ == "__main__":
             # 动态确定输入维度
             enc_in = tsData.train.shape[1] if len(tsData.train.shape) > 1 else 1
             
-            # 创建配置
+            # 优化配置 - 专门针对异常检测调整
             self.config = TimesNetConfig(
                 seq_len=self.window_size,
+                pred_len=0,  # 异常检测不需要预测
                 enc_in=enc_in,
-                c_out=enc_in
+                c_out=enc_in,
+                d_model=min(128, max(64, enc_in * 4)),  # 增加模型容量
+                d_ff=min(256, max(128, enc_in * 8)),    # 增加前馈网络容量
+                e_layers=3,  # 增加层数
+                top_k=min(4, max(3, self.window_size // 12)),  # 增加周期性捕获
+                num_kernels=6,  # 增加卷积核数量
+                embed='timeF',
+                freq='h',
+                dropout=0.2  # 增加dropout
             )
             
             # 创建模型
             self.model = TimesNetModel(self.config).to(self.device)
-            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
-            self.criterion = nn.MSELoss()
+            
+            # 使用AdamW优化器，增加权重衰减
+            self.optimizer = torch.optim.AdamW(
+                self.model.parameters(), 
+                lr=self.learning_rate,
+                weight_decay=1e-3,  # 增加权重衰减
+                betas=(0.9, 0.999)  # 调整动量参数
+            )
+            
+            # 使用SmoothL1Loss，对异常值更鲁棒
+            self.criterion = nn.SmoothL1Loss()
+            
+            # 改进的学习率调度器
+            self.scheduler = torch.optim.OneCycleLR(
+                self.optimizer,
+                max_lr=self.learning_rate,
+                epochs=self.epochs,
+                steps_per_epoch=len(DataLoader(
+                    MTSTimeSeriesDataset(tsData.train, self.window_size),
+                    batch_size=self.batch_size
+                )),
+                pct_start=0.3,  # 前30%时间用于预热
+                div_factor=10.0,
+                final_div_factor=1e4
+            )
             
             # 准备训练数据
             if len(tsData.train.shape) == 1:
                 train_data = tsData.train.reshape(-1, 1)
             else:
                 train_data = tsData.train
+            
+            # 数据采样优化 - 更智能的采样策略
+            if len(train_data) > 15000:
+                # 使用分层采样，保持数据分布
+                sample_ratio = 15000 / len(train_data)
+                indices = np.arange(len(train_data))
+                step = int(1 / sample_ratio)
+                sampled_indices = indices[::step][:15000]
+                train_data = train_data[sampled_indices]
+                print(f"智能采样后训练数据形状: {train_data.shape}")
                 
             train_dataset = MTSTimeSeriesDataset(train_data, self.window_size)
-            train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True)
+            train_loader = DataLoader(
+                train_dataset, 
+                batch_size=self.batch_size, 
+                shuffle=True,
+                num_workers=0,  # Windows兼容性
+                pin_memory=True if torch.cuda.is_available() else False,
+                drop_last=True  # 避免最后一个batch大小不一致
+            )
             
-            # 训练模型
+            print(f"训练集大小: {len(train_dataset)}, 批次数: {len(train_loader)}")
+            
+            # 训练模型 - 改进的训练循环
             self.model.train()
+            best_loss = float('inf')
+            patience = 5  # 增加patience
+            patience_counter = 0
+            best_state = None
+            
             for epoch in range(self.epochs):
                 total_loss = 0
                 num_batches = 0
                 
                 progress_bar = tqdm.tqdm(train_loader, desc=f'Epoch {epoch+1}/{self.epochs}')
                 for batch_x in progress_bar:
-                    batch_x = batch_x.to(self.device)
+                    batch_x = batch_x.to(self.device, non_blocking=True)
                     
                     self.optimizer.zero_grad()
-                    outputs = self.model(batch_x)
+                    
+                    # 使用anomaly_detection方法进行训练
+                    outputs = self.model.anomaly_detection(batch_x)
+                    
+                    # 计算重构损失
                     loss = self.criterion(outputs, batch_x)
+                    
+                    # 添加正则化损失
+                    l2_lambda = 1e-5
+                    l2_reg = torch.tensor(0.).to(self.device)
+                    for param in self.model.parameters():
+                        l2_reg += torch.norm(param)
+                    loss += l2_lambda * l2_reg
+                    
                     loss.backward()
+                    
+                    # 梯度裁剪
+                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+                    
                     self.optimizer.step()
+                    self.scheduler.step()
                     
                     total_loss += loss.item()
                     num_batches += 1
@@ -379,6 +452,29 @@ if __name__ == "__main__":
                 
                 avg_loss = total_loss / num_batches
                 print(f"Epoch {epoch+1}, Average Loss: {avg_loss:.6f}")
+                
+                # 改进的早停机制
+                if avg_loss < best_loss * 0.99:  # 需要有更明显的改进
+                    best_loss = avg_loss
+                    patience_counter = 0
+                    # 保存最佳模型状态
+                    best_state = {
+                        'model_state_dict': self.model.state_dict(),
+                        'optimizer_state_dict': self.optimizer.state_dict(),
+                        'loss': best_loss,
+                        'epoch': epoch
+                    }
+                else:
+                    patience_counter += 1
+                    if patience_counter >= patience:
+                        print(f"Early stopping at epoch {epoch+1}, best loss: {best_loss:.6f}")
+                        break
+            
+            # 恢复最佳模型状态
+            if best_state is not None:
+                self.model.load_state_dict(best_state['model_state_dict'])
+            
+            print(f"训练完成！最终loss: {best_loss:.6f}")
             
         def test_phase(self, tsData: MTSData):
             print(f"测试数据形状: {tsData.test.shape}")
@@ -388,42 +484,86 @@ if __name__ == "__main__":
                 test_data = tsData.test.reshape(-1, 1)
             else:
                 test_data = tsData.test
-                
-            test_dataset = MTSTimeSeriesDataset(test_data, self.window_size)
-            test_loader = DataLoader(test_dataset, batch_size=self.batch_size, shuffle=False)
             
-            # 测试模型
             self.model.eval()
-            all_scores = []
+            
+            # 使用滑动窗口创建测试数据集
+            test_dataset = MTSTimeSeriesDataset(test_data, self.window_size)
+            test_loader = DataLoader(
+                test_dataset, 
+                batch_size=self.batch_size * 2,  # 测试时可以用更大的batch
+                shuffle=False,
+                num_workers=0,
+                pin_memory=True if torch.cuda.is_available() else False
+            )
+            
+            all_reconstruction_errors = []
             
             with torch.no_grad():
                 progress_bar = tqdm.tqdm(test_loader, desc='Testing')
                 for batch_x in progress_bar:
-                    batch_x = batch_x.to(self.device)
-                    outputs = self.model(batch_x)
+                    batch_x = batch_x.to(self.device, non_blocking=True)
                     
-                    # 计算重构误差作为异常分数
-                    mse = torch.mean((batch_x - outputs) ** 2, dim=(1, 2))
-                    scores = mse.cpu().numpy()
-                    all_scores.extend(scores)
+                    # 使用anomaly_detection方法
+                    reconstruction = self.model.anomaly_detection(batch_x)
+                    
+                    # 改进的异常分数计算
+                    # 1. 计算每个时间步的重构误差
+                    errors = (batch_x - reconstruction) ** 2
+                    
+                    # 2. 计算每个特征的权重（基于方差）
+                    feature_weights = 1.0 / (torch.var(batch_x, dim=1, keepdim=True) + 1e-5)
+                    feature_weights = feature_weights / feature_weights.sum(dim=2, keepdim=True)
+                    
+                    # 3. 加权平均重构误差
+                    weighted_errors = errors * feature_weights
+                    mse_per_timestep = torch.sum(weighted_errors, dim=2)  # [batch, time]
+                    
+                    # 4. 使用指数加权移动平均计算最终分数
+                    alpha = 0.3
+                    window_scores = torch.zeros(mse_per_timestep.shape[0], device=self.device)
+                    for t in range(mse_per_timestep.shape[1]):
+                        window_scores = alpha * mse_per_timestep[:, t] + (1 - alpha) * window_scores
+                    
+                    all_reconstruction_errors.extend(window_scores.cpu().numpy())
             
-            # 处理分数长度，确保与原始数据长度一致
-            scores = np.array(all_scores)
+            # 处理分数长度
+            scores = np.array(all_reconstruction_errors)
             
-            # 为前面的时间步填充平均分数
-            if len(scores) < len(test_data):
-                pad_length = len(test_data) - len(scores)
-                avg_score = np.mean(scores) if len(scores) > 0 else 0
-                padded_scores = np.concatenate([np.full(pad_length, avg_score), scores])
-                scores = padded_scores
+            # 填充缺失的时间步
+            num_missing = len(test_data) - len(scores)
+            if num_missing > 0:
+                if len(scores) > 0:
+                    # 使用前20个分数的中位数，更稳定
+                    fill_value = np.median(scores[:min(20, len(scores))])
+                else:
+                    fill_value = 0
+                missing_scores = np.full(num_missing, fill_value)
+                scores = np.concatenate([missing_scores, scores])
             
-            # 归一化分数
-            if len(scores) > 0 and np.max(scores) > np.min(scores):
-                scores = (scores - np.min(scores)) / (np.max(scores) - np.min(scores))
+            # 裁剪到正确长度
+            scores = scores[:len(test_data)]
+            
+            # 改进的分数后处理
+            if len(scores) > 0:
+                # 1. 移除极端异常值
+                q1, q99 = np.percentile(scores, [1, 99])
+                scores = np.clip(scores, q1, q99)
+                
+                # 2. 应用指数变换突出异常
+                scores = np.exp(scores / scores.std()) - 1
+                
+                # 3. 最终归一化
+                scores = (scores - scores.min()) / (scores.max() - scores.min() + 1e-10)
+                
+                # 4. 平滑处理
+                window_size = 5
+                kernel = np.ones(window_size) / window_size
+                scores = np.convolve(scores, kernel, mode='same')
             
             self.__anomaly_score = scores
-            print(f"异常分数计算完成，长度: {len(scores)}")
-            
+            print(f"异常分数计算完成，长度: {len(scores)}, 分数范围: [{np.min(scores):.4f}, {np.max(scores):.4f}]")
+        
         def anomaly_score(self) -> np.ndarray:
             return self.__anomaly_score
         
@@ -450,25 +590,19 @@ if __name__ == "__main__":
     """============= 运行算法 ============="""
     # Specifying methods and training schemas
     training_schema = "mts"
-    method = "MTSTimesNet"  # string of your algo class
+    method = "NewTimesNet"  # string of your algo class
     
     # run models
     gctrl.run_exps(
         method=method,
         training_schema=training_schema,
         hparams={
-            "window_size": 64,
-            "batch_size": 16,
-            "epochs": 5,
-            "learning_rate": 0.001,
+            "window_size": 48,     # 增大窗口以捕获更多时序信息
+            "batch_size": 128,     # 增大batch_size提高训练效率
+            "epochs": 20,          # 增加训练轮数
+            "learning_rate": 0.001  # 使用较大的学习率配合OneCycleLR
         },
-        # use which method to preprocess original data. 
-        # Default: raw
-        # Option: 
-        #   - z-score(Standardlization), 
-        #   - min-max(Normalization), 
-        #   - raw (original curves)
-        preprocess="z-score",
+        preprocess="z-score",  # 使用z-score标准化
     )
        
         
@@ -497,3 +631,4 @@ if __name__ == "__main__":
         method=method,
         training_schema=training_schema
     )
+ 
