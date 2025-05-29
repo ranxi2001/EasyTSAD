@@ -1,0 +1,17 @@
+{
+    "best f1 under pa": {
+        "f1": 0.7122130033636449,
+        "precision": 0.6885355301749565,
+        "recall": 0.7616681011793138
+    },
+    "event-based f1 under pa with mode log": {
+        "f1": 0.19887661586478272,
+        "precision": 0.5933623902049506,
+        "recall": 0.16135990433293557
+    },
+    "event-based f1 under pa with mode squeeze": {
+        "f1": 0.14805509935041355,
+        "precision": 0.3888659951159949,
+        "recall": 0.10479624542124541
+    }
+}

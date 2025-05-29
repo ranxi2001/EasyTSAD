@@ -8,15 +8,15 @@ CAD,mts,machine-2,event-based f1 under pa with mode squeeze,0.7081495361024117,0
 CAD,mts,machine-3,best f1 under pa,0.9298283516437944,0.9376620547364564,0.9351029475011671
 CAD,mts,machine-3,event-based f1 under pa with mode log,0.7448022329251507,0.8538993624478213,0.697252142896426
 CAD,mts,machine-3,event-based f1 under pa with mode squeeze,0.6457764490950239,0.7241161616161615,0.6535018012290738
-HyperTimesNet,mts,machine-1,best f1 under pa,0.8908080837566428,0.8668162221926277,0.9494179113488495
-HyperTimesNet,mts,machine-1,event-based f1 under pa with mode log,0.5389249802573886,0.4960886542286315,0.7394173105699275
-HyperTimesNet,mts,machine-1,event-based f1 under pa with mode squeeze,0.3480127954384153,0.31174773580126147,0.5120650183150183
-HyperTimesNet,mts,machine-2,best f1 under pa,0.9263053079395154,0.8920197703151695,0.9678396915541829
-HyperTimesNet,mts,machine-2,event-based f1 under pa with mode log,0.4546041533591758,0.33794679583268256,0.8995879212545879
-HyperTimesNet,mts,machine-2,event-based f1 under pa with mode squeeze,0.2823576762218405,0.43404354904354886,0.5637112887112886
-HyperTimesNet,mts,machine-3,best f1 under pa,0.8746086047563064,0.8360616297498793,0.9458329943059806
-HyperTimesNet,mts,machine-3,event-based f1 under pa with mode log,0.4759339216681476,0.531851427196176,0.6152230105043172
-HyperTimesNet,mts,machine-3,event-based f1 under pa with mode squeeze,0.35071978987332164,0.44490224828934494,0.41942678533587613
+HyperTimesNet,mts,machine-1,best f1 under pa,0.8860062115037599,0.8933237862356235,0.8809677187127212
+HyperTimesNet,mts,machine-1,event-based f1 under pa with mode log,0.5371817917413698,0.5099699172947929,0.7142225273720957
+HyperTimesNet,mts,machine-1,event-based f1 under pa with mode squeeze,0.35496994852835934,0.36321135461760456,0.5427770146520146
+HyperTimesNet,mts,machine-2,best f1 under pa,0.9239395044670391,0.884468417266734,0.9717954952324658
+HyperTimesNet,mts,machine-2,event-based f1 under pa with mode log,0.4319759709306463,0.32424097443254446,0.8903477286810619
+HyperTimesNet,mts,machine-2,event-based f1 under pa with mode squeeze,0.2556122021749499,0.44057394026462093,0.5638074888074887
+HyperTimesNet,mts,machine-3,best f1 under pa,0.8636300928863623,0.8301517613315826,0.9390484922180914
+HyperTimesNet,mts,machine-3,event-based f1 under pa with mode log,0.4692029063566218,0.6002575751879271,0.5946680965737227
+HyperTimesNet,mts,machine-3,event-based f1 under pa with mode squeeze,0.34881704227405663,0.5573290459669608,0.40313095994914167
 MTSExample,mts,machine-1,best f1 under pa,0.8908859684948505,0.9193002665633574,0.8906491423210176
 MTSExample,mts,machine-1,event-based f1 under pa with mode log,0.6968462238011739,0.8320895335718481,0.6720327173980418
 MTSExample,mts,machine-1,event-based f1 under pa with mode squeeze,0.5980010973250769,0.6885375784929356,0.6363324175824175

@@ -1,0 +1,11 @@
+MTSMixer异常检测模型信息:
+                模型类型: MTS-Mixers (用于多元时序异常检测)
+                使用设备: cuda
+                模型参数数量: 0
+                模型架构: MTS-Mixers with RevIN normalization
+                特征: 
+                - 因子化时间混合 (Factorized Temporal Mixing)
+                - 可选因子化通道混合 (Factorized Channel Mixing)  
+                - 可逆实例标准化 (RevIN)
+                - 基于重构误差的异常检测
+                
