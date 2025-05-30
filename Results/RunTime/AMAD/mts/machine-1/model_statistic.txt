@@ -1,0 +1,23 @@
+🚀 AMAD (Adaptive Multi-scale Anomaly Detector) 模型信息:
+                
+                📋 模型类型: AMAD - SOTA级多元时序异常检测器
+                💻 使用设备: cuda
+                🔢 模型参数数量: 0
+                
+                🏗️ 核心架构:
+                ✅ 多尺度特征提取器 (Multi-Scale Feature Extractor)
+                ✅ 自适应注意力机制 (Adaptive Attention Mechanism)  
+                ✅ 混合异常检测头 (Hybrid Anomaly Detection Head)
+                ✅ 智能后处理器 (Intelligent Post-Processor)
+                
+                🚀 技术创新:
+                1. 多尺度时序特征提取 - 捕获不同粒度异常模式
+                2. 自适应注意力机制 - 动态关注异常相关特征
+                3. 混合检测策略 - 重构+分类+回归多路径融合
+                4. 智能后处理 - 集成Isolation Forest和自适应增强
+                5. 多任务学习损失 - MAE+MSE+惩罚机制组合
+                
+                🎯 设计目标: 实现MTS异常检测SOTA性能
+                📈 预期效果: Point F1 95%+, Event F1 80%+
+                🔧 工程优势: 端到端训练，自适应参数调整
+                
