@@ -1,0 +1,31 @@
+Dataset: machine-1  # 数据集选择
+Method: ReconstructionMTS  # 算法名称
+
+# 模型超参数
+ModelConfig:
+  hidden_dim: 64      # 隐藏层维度
+  learning_rate: 0.001  # 学习率
+  epochs: 30          # 训练轮数
+  batch_size: 16      # 批次大小
+
+# 训练配置
+TrainConfig:
+  window_size: 64     # 滑动窗口大小
+  stride: 8           # 滑动步长
+  patience: 15        # 早停耐心值
+  
+# 重构损失权重
+LossConfig:
+  alpha: 1.0          # 重构损失权重
+  beta: 0.1           # 潜在表征正则化权重  
+  gamma: 0.01         # 稀疏性正则化权重
+
+# 后处理配置
+PostProcessConfig:
+  contamination: 0.1  # 污染率
+  smooth_window: 5    # 平滑窗口大小
+
+# 评估配置
+EvalConfig:
+  point_adjust: true  # 点级调整
+  event_adjust: true  # 事件级调整 
