@@ -9,8 +9,8 @@ transition: slide-left
 mdc: true
 ---
 
-# LightMMoE
-## 轻量级多专家混合异常检测算法
+# LightMMoE-
+## 轻量级多专家混合多元时序异常检测算法
 
 **高效的多元时序异常检测解决方案**
 
