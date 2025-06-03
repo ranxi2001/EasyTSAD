@@ -322,7 +322,7 @@ class OmniAnomaly(BaseMethod):
         
         # 处理分数
         full_scores = self._process_scores(scores, len(test_data))
-        
+
         self.__anomaly_score = full_scores
         print(f"[LOG] 异常分数范围: [{np.min(full_scores):.4f}, {np.max(full_scores):.4f}]")
         print(f"[LOG] 异常分数统计: 均值={np.mean(full_scores):.4f}, 标准差={np.std(full_scores):.4f}")
