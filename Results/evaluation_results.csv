@@ -35,6 +35,24 @@ CoarseGrainedMTS,mts,machine-2,event-based f1 under pa with mode squeeze,0.45492
 CoarseGrainedMTS,mts,machine-3,best f1 under pa,0.6886538317225053,0.7278749537034037,0.7816454552795858
 CoarseGrainedMTS,mts,machine-3,event-based f1 under pa with mode log,0.4692236382414915,0.7110021474969667,0.451674772092195
 CoarseGrainedMTS,mts,machine-3,event-based f1 under pa with mode squeeze,0.38814471683807494,0.5844360674915063,0.42461326552235634
+EnhancedVoting,mts,machine-1,best f1 under pa,0.9012803044048562,0.8958762543866746,0.9113528415177079
+EnhancedVoting,mts,machine-1,event-based f1 under pa with mode log,0.5921269143628947,0.6876840349666437,0.551537309938952
+EnhancedVoting,mts,machine-1,event-based f1 under pa with mode squeeze,0.46054395951929117,0.7592532467532465,0.3812843406593406
+EnhancedVoting,mts,machine-2,best f1 under pa,0.9030469060360914,0.9401762455027658,0.8787190393640407
+EnhancedVoting,mts,machine-2,event-based f1 under pa with mode log,0.6582522500498149,0.7389896691741006,0.6570943287609956
+EnhancedVoting,mts,machine-2,event-based f1 under pa with mode squeeze,0.5718236012353652,0.7901234567901233,0.4903966403966402
+EnhancedVoting,mts,machine-3,best f1 under pa,0.835763324649104,0.8268935720031013,0.8725831457652579
+EnhancedVoting,mts,machine-3,event-based f1 under pa with mode log,0.5453330852817216,0.8127091940489067,0.4260903696021664
+EnhancedVoting,mts,machine-3,event-based f1 under pa with mode squeeze,0.4627563995985043,0.6659976387249112,0.39358974358974347
+EventMaster,mts,machine-1,best f1 under pa,0.5901786319250294,0.703371640263585,0.6569735364486422
+EventMaster,mts,machine-1,event-based f1 under pa with mode log,0.2582017193079994,0.5130901691786383,0.2736453947218596
+EventMaster,mts,machine-1,event-based f1 under pa with mode squeeze,0.1908423708123587,0.5502234215413182,0.20012591575091576
+EventMaster,mts,machine-2,best f1 under pa,0.639598722794636,0.816186924942544,0.6161475571545778
+EventMaster,mts,machine-2,event-based f1 under pa with mode log,0.35875960033150567,0.6075596355153722,0.3520734287400954
+EventMaster,mts,machine-2,event-based f1 under pa with mode squeeze,0.29712084181876147,0.5317357733883417,0.31595164095164086
+EventMaster,mts,machine-3,best f1 under pa,0.4078785798664526,0.44567798212552034,0.7330384138438194
+EventMaster,mts,machine-3,event-based f1 under pa with mode log,0.18792030779095975,0.3427520506193868,0.4946898987280112
+EventMaster,mts,machine-3,event-based f1 under pa with mode squeeze,0.14423615249032715,0.3063620824791572,0.36579254079254064
 HMMoE,mts,machine-1,best f1 under pa,0.8968922070153068,0.9137323096936327,0.9092403281095923
 HMMoE,mts,machine-1,event-based f1 under pa with mode log,0.7118924725629522,0.8343585145974853,0.692440880663348
 HMMoE,mts,machine-1,event-based f1 under pa with mode squeeze,0.6142373041400495,0.6910576923076922,0.6571657509157508
@@ -62,6 +80,15 @@ LightMMoE,mts,machine-2,event-based f1 under pa with mode squeeze,0.726788693329
 LightMMoE,mts,machine-3,best f1 under pa,0.930666419688187,0.9486540011692476,0.9272135906774804
 LightMMoE,mts,machine-3,event-based f1 under pa with mode log,0.7673078197591569,0.8343119599698546,0.7447517697063976
 LightMMoE,mts,machine-3,event-based f1 under pa with mode squeeze,0.6559854991222367,0.7344411860540891,0.6799480822208094
+MAAT,mts,machine-1,best f1 under pa,0.7759380606523023,0.7668665729915501,0.8275577448231549
+MAAT,mts,machine-1,event-based f1 under pa with mode log,0.3927297806171888,0.6305488585594421,0.34963364089752286
+MAAT,mts,machine-1,event-based f1 under pa with mode squeeze,0.28439060939060895,0.6573051948051944,0.22119963369963366
+MAAT,mts,machine-2,best f1 under pa,0.8243747129600465,0.8890465986746978,0.7987554161444128
+MAAT,mts,machine-2,event-based f1 under pa with mode log,0.4638731839370295,0.6014642761143362,0.4670065914510359
+MAAT,mts,machine-2,event-based f1 under pa with mode squeeze,0.3849161037566829,0.6885064412238322,0.3444666444666443
+MAAT,mts,machine-3,best f1 under pa,0.8845063223941491,0.9364655490351783,0.8527689094414359
+MAAT,mts,machine-3,event-based f1 under pa with mode log,0.53507443827195,0.6393359552866521,0.5187386569872958
+MAAT,mts,machine-3,event-based f1 under pa with mode squeeze,0.4065167744543302,0.5836063989174035,0.36152256834075014
 MTSExample,mts,machine-1,best f1 under pa,0.8908859684948505,0.9193002665633574,0.8906491423210176
 MTSExample,mts,machine-1,event-based f1 under pa with mode log,0.6968462238011739,0.8320895335718481,0.6720327173980418
 MTSExample,mts,machine-1,event-based f1 under pa with mode squeeze,0.5980010973250769,0.6885375784929356,0.6363324175824175
@@ -98,6 +125,15 @@ NewTimesNet,mts,machine-2,event-based f1 under pa with mode squeeze,0.2709128613
 NewTimesNet,mts,machine-3,best f1 under pa,0.8606656828470942,0.8129918264302507,0.9498730583639126
 NewTimesNet,mts,machine-3,event-based f1 under pa with mode log,0.4522324392947756,0.5024575238421302,0.5575136901815667
 NewTimesNet,mts,machine-3,event-based f1 under pa with mode squeeze,0.3157681886227262,0.40301461823200935,0.33436639118457295
+OmniAnomaly,mts,machine-1,best f1 under pa,0.5769093647519462,0.7846430180009984,0.5768492355928001
+OmniAnomaly,mts,machine-1,event-based f1 under pa with mode log,0.3237509755655993,0.8691770186335401,0.24615107409031217
+OmniAnomaly,mts,machine-1,event-based f1 under pa with mode squeeze,0.2831718719876612,0.8400768535262201,0.20768086080586076
+OmniAnomaly,mts,machine-2,best f1 under pa,0.6674153756374586,0.6960273855359405,0.7888142644781774
+OmniAnomaly,mts,machine-2,event-based f1 under pa with mode log,0.3898184115748707,0.5338874969791966,0.3897975936864826
+OmniAnomaly,mts,machine-2,event-based f1 under pa with mode squeeze,0.315799326546157,0.4666834885414118,0.32015854515854497
+OmniAnomaly,mts,machine-3,best f1 under pa,0.5963116415343864,0.7145956992502578,0.6178851773761198
+OmniAnomaly,mts,machine-3,event-based f1 under pa with mode log,0.30868587366513256,0.5931348364443558,0.32235526119373664
+OmniAnomaly,mts,machine-3,event-based f1 under pa with mode squeeze,0.250399901361758,0.5950634435159301,0.25245285018012287
 ReconstructionMTS,mts,machine-1,best f1 under pa,0.8237547461208742,0.8838300708764438,0.8110367361108286
 ReconstructionMTS,mts,machine-1,event-based f1 under pa with mode log,0.568588070080686,0.8545596016184251,0.49091153951953054
 ReconstructionMTS,mts,machine-1,event-based f1 under pa with mode squeeze,0.4770368520368516,0.8348214285714284,0.3910599816849817
@@ -107,6 +143,15 @@ ReconstructionMTS,mts,machine-2,event-based f1 under pa with mode squeeze,0.4752
 ReconstructionMTS,mts,machine-3,best f1 under pa,0.7956271100202176,0.8641822819815094,0.7902473242656417
 ReconstructionMTS,mts,machine-3,event-based f1 under pa with mode log,0.5322581958824997,0.7473988943827211,0.4503159675573469
 ReconstructionMTS,mts,machine-3,event-based f1 under pa with mode squeeze,0.43467068254008817,0.7414600550964184,0.3420216147488874
+SmartSimpleAD,mts,machine-1,best f1 under pa,0.8862302167975804,0.9069851326357826,0.8938416183663251
+SmartSimpleAD,mts,machine-1,event-based f1 under pa with mode log,0.625643793418625,0.6928121871065104,0.6910153104352567
+SmartSimpleAD,mts,machine-1,event-based f1 under pa with mode squeeze,0.4794143390342197,0.5535496089931573,0.5477907509157509
+SmartSimpleAD,mts,machine-2,best f1 under pa,0.9673449247459163,0.9538724565550832,0.9818527308348407
+SmartSimpleAD,mts,machine-2,event-based f1 under pa with mode log,0.7778621530213861,0.7791938662235368,0.8192093192093193
+SmartSimpleAD,mts,machine-2,event-based f1 under pa with mode squeeze,0.6759693791987161,0.7591785462617846,0.6888666888666887
+SmartSimpleAD,mts,machine-3,best f1 under pa,0.939761171488012,0.9624890215658118,0.9259852215692818
+SmartSimpleAD,mts,machine-3,event-based f1 under pa with mode log,0.6949397408718023,0.7246189729810418,0.70949081166867
+SmartSimpleAD,mts,machine-3,event-based f1 under pa with mode squeeze,0.5662629118769463,0.6043650793650793,0.6400720491629581
 TimeMixer,naive,machine-1,best f1 under pa,0.7075482441598613,0.6819241724087681,0.8048933256501972
 TimeMixer,naive,machine-1,event-based f1 under pa with mode log,0.2218758205002298,0.8201086956521738,0.1516810327843161
 TimeMixer,naive,machine-1,event-based f1 under pa with mode squeeze,0.17811793493245082,0.8416666666666661,0.10271291208791207
@@ -116,3 +161,21 @@ TimeMixer,naive,machine-2,event-based f1 under pa with mode squeeze,0.2454620482
 TimeMixer,naive,machine-3,best f1 under pa,0.6906868362031752,0.7524658732639428,0.7285151379304406
 TimeMixer,naive,machine-3,event-based f1 under pa with mode log,0.30785620192076396,0.600834598324997,0.3306355622598817
 TimeMixer,naive,machine-3,event-based f1 under pa with mode squeeze,0.23532748116081412,0.5717881778045533,0.24821996185632544
+USAD,mts,machine-1,best f1 under pa,0.8530675752403516,0.8265400066319325,0.9071170676122357
+USAD,mts,machine-1,event-based f1 under pa with mode log,0.4638311372699259,0.48085889804639814,0.5402098732625271
+USAD,mts,machine-1,event-based f1 under pa with mode squeeze,0.33586082864566763,0.5014996981755325,0.4263850732600732
+USAD,mts,machine-2,best f1 under pa,0.8092927201576783,0.8559143522353034,0.8004064492495975
+USAD,mts,machine-2,event-based f1 under pa with mode log,0.4389081499245673,0.7573505495203607,0.35893982505093613
+USAD,mts,machine-2,event-based f1 under pa with mode squeeze,0.33807472483943024,0.7195767195767192,0.28650238650238635
+USAD,mts,machine-3,best f1 under pa,0.789872087033964,0.884003774561629,0.7453339108185998
+USAD,mts,machine-3,event-based f1 under pa with mode log,0.4328134184057629,0.68786530418971,0.4234757478859112
+USAD,mts,machine-3,event-based f1 under pa with mode squeeze,0.29667184337416025,0.6299507084805588,0.3085293494384403
+VotingEnsemble,mts,machine-1,best f1 under pa,0.8651417736014455,0.8980100393956076,0.8698483189541253
+VotingEnsemble,mts,machine-1,event-based f1 under pa with mode log,0.6014700706127766,0.823040994623656,0.4776422427122325
+VotingEnsemble,mts,machine-1,event-based f1 under pa with mode squeeze,0.5043814320665313,0.6546087184873949,0.4137362637362637
+VotingEnsemble,mts,machine-2,best f1 under pa,0.861239160597837,0.8872422072396378,0.8494776831615274
+VotingEnsemble,mts,machine-2,event-based f1 under pa with mode log,0.5607794283082719,0.7535402694207725,0.5275876181431737
+VotingEnsemble,mts,machine-2,event-based f1 under pa with mode squeeze,0.5029385206980829,0.8349141824751578,0.41207958707958686
+VotingEnsemble,mts,machine-3,best f1 under pa,0.715414009639042,0.9487755344191704,0.6100874552985173
+VotingEnsemble,mts,machine-3,event-based f1 under pa with mode log,0.49070093168014833,0.9388047138047135,0.35855181317976237
+VotingEnsemble,mts,machine-3,event-based f1 under pa with mode squeeze,0.43983339892430756,0.8751023751023745,0.3327929646111464

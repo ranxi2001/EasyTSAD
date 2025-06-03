@@ -11,6 +11,12 @@ Catch,event-based f1 under pa with mode squeeze,0.2217,0.0639,0.2612,0.4809,0.07
 CoarseGrainedMTS,best f1 under pa,0.6964,0.0486,0.7484,0.6975,0.055,0.7307,0.8073,0.1105,0.9284
 CoarseGrainedMTS,event-based f1 under pa with mode log,0.4425,0.0854,0.5113,0.6582,0.0539,0.711,0.492,0.1316,0.639
 CoarseGrainedMTS,event-based f1 under pa with mode squeeze,0.3646,0.1042,0.4549,0.6539,0.101,0.7698,0.4065,0.0959,0.492
+EnhancedVoting,best f1 under pa,0.88,0.0383,0.903,0.8876,0.0571,0.9402,0.8876,0.0208,0.9114
+EnhancedVoting,event-based f1 under pa with mode log,0.5986,0.0567,0.6583,0.7465,0.0628,0.8127,0.5449,0.1156,0.6571
+EnhancedVoting,event-based f1 under pa with mode squeeze,0.4984,0.0636,0.5718,0.7385,0.0646,0.7901,0.4218,0.0598,0.4904
+EventMaster,best f1 under pa,0.5459,0.122,0.6396,0.6551,0.1899,0.8162,0.6687,0.0593,0.733
+EventMaster,event-based f1 under pa with mode log,0.2683,0.0859,0.3588,0.4878,0.1342,0.6076,0.3735,0.1121,0.4947
+EventMaster,event-based f1 under pa with mode squeeze,0.2107,0.0784,0.2971,0.4628,0.1358,0.5502,0.294,0.085,0.3658
 HMMoE,best f1 under pa,0.9338,0.0383,0.9734,0.9477,0.0295,0.9659,0.9344,0.0432,0.9843
 HMMoE,event-based f1 under pa with mode log,0.7604,0.0513,0.814,0.8388,0.0233,0.864,0.7404,0.0507,0.7935
 HMMoE,event-based f1 under pa with mode squeeze,0.6604,0.0622,0.7311,0.755,0.0953,0.8645,0.6686,0.0129,0.6825
@@ -20,6 +26,9 @@ HyperTimesNet,event-based f1 under pa with mode squeeze,0.3198,0.0557,0.355,0.45
 LightMMoE,best f1 under pa,0.9341,0.0423,0.978,0.9413,0.0322,0.9692,0.9413,0.041,0.9875
 LightMMoE,event-based f1 under pa with mode log,0.7542,0.0795,0.8263,0.8034,0.0583,0.8397,0.7583,0.0749,0.8391
 LightMMoE,event-based f1 under pa with mode squeeze,0.6467,0.0851,0.7268,0.6744,0.0945,0.7344,0.7051,0.0636,0.7775
+MAAT,best f1 under pa,0.8283,0.0544,0.8845,0.8641,0.0875,0.9365,0.8264,0.027,0.8528
+MAAT,event-based f1 under pa with mode log,0.4639,0.0712,0.5351,0.6238,0.0198,0.6393,0.4451,0.0866,0.5187
+MAAT,event-based f1 under pa with mode squeeze,0.3586,0.0652,0.4065,0.6431,0.0539,0.6885,0.3091,0.0766,0.3615
 MTSExample,best f1 under pa,0.9366,0.0445,0.9798,0.9602,0.0357,0.9853,0.9261,0.0505,0.984
 MTSExample,event-based f1 under pa with mode log,0.7669,0.0693,0.8355,0.8387,0.0247,0.8661,0.7555,0.0787,0.8284
 MTSExample,event-based f1 under pa with mode squeeze,0.664,0.0714,0.7399,0.7424,0.0658,0.8157,0.6883,0.0585,0.7517
@@ -32,9 +41,21 @@ MTSTimesNet,event-based f1 under pa with mode squeeze,0.2668,0.0997,0.3663,0.741
 NewTimesNet,best f1 under pa,0.8972,0.0333,0.9259,0.8633,0.0444,0.897,0.9509,0.0301,0.9815
 NewTimesNet,event-based f1 under pa with mode log,0.4807,0.0572,0.5466,0.4467,0.0976,0.5037,0.7327,0.1718,0.9008
 NewTimesNet,event-based f1 under pa with mode squeeze,0.3132,0.041,0.3528,0.3523,0.0459,0.403,0.5041,0.1474,0.5992
+OmniAnomaly,best f1 under pa,0.6135,0.0477,0.6674,0.7318,0.0467,0.7846,0.6612,0.1124,0.7888
+OmniAnomaly,event-based f1 under pa with mode log,0.3408,0.0432,0.3898,0.6654,0.1789,0.8692,0.3194,0.0719,0.3898
+OmniAnomaly,event-based f1 under pa with mode squeeze,0.2831,0.0327,0.3158,0.6339,0.1897,0.8401,0.2601,0.0566,0.3202
 ReconstructionMTS,best f1 under pa,0.8409,0.0559,0.9034,0.8949,0.0374,0.9366,0.828,0.0484,0.8826
 ReconstructionMTS,event-based f1 under pa with mode log,0.5469,0.0192,0.5686,0.8211,0.0639,0.8613,0.4671,0.0212,0.4909
 ReconstructionMTS,event-based f1 under pa with mode squeeze,0.4623,0.0239,0.477,0.8402,0.1016,0.9444,0.3715,0.026,0.3911
+SmartSimpleAD,best f1 under pa,0.9311,0.0412,0.9673,0.9411,0.0299,0.9625,0.9339,0.0445,0.9819
+SmartSimpleAD,event-based f1 under pa with mode log,0.6995,0.0762,0.7779,0.7322,0.0437,0.7792,0.7399,0.0693,0.8192
+SmartSimpleAD,event-based f1 under pa with mode squeeze,0.5739,0.0985,0.676,0.639,0.1071,0.7592,0.6256,0.0716,0.6889
 TimeMixer,best f1 under pa,0.7069,0.0159,0.7224,0.6999,0.0462,0.7525,0.7939,0.0606,0.8482
 TimeMixer,event-based f1 under pa with mode log,0.2688,0.0435,0.3079,0.6973,0.112,0.8201,0.2444,0.0896,0.3306
 TimeMixer,event-based f1 under pa with mode squeeze,0.2196,0.0363,0.2455,0.6892,0.1383,0.8417,0.1882,0.076,0.2482
+USAD,best f1 under pa,0.8174,0.0324,0.8531,0.8555,0.0287,0.884,0.8176,0.0823,0.9071
+USAD,event-based f1 under pa with mode log,0.4452,0.0164,0.4638,0.642,0.1438,0.7574,0.4409,0.0919,0.5402
+USAD,event-based f1 under pa with mode squeeze,0.3235,0.0233,0.3381,0.617,0.1096,0.7196,0.3405,0.0752,0.4264
+VotingEnsemble,best f1 under pa,0.8139,0.0853,0.8651,0.9113,0.0329,0.9488,0.7765,0.1445,0.8698
+VotingEnsemble,event-based f1 under pa with mode log,0.551,0.056,0.6015,0.8385,0.0936,0.9388,0.4546,0.0868,0.5276
+VotingEnsemble,event-based f1 under pa with mode squeeze,0.4824,0.0369,0.5044,0.7882,0.1174,0.8751,0.3862,0.0463,0.4137
