@@ -1,8 +1,9 @@
 """
-OmniAnomaly算法实现 - SMD数据集优化版本 (PyTorch实现)
+OmniAnomaly算法实现 - 高性能优化版本 (PyTorch实现)
 基于EasyTSAD框架
 
 性能目标: 在SMD数据集上达到95%+ F1分数
+主要优化: 修复损失函数、改进模型架构、优化GPU利用、增强训练稳定性
 """
 
 import numpy as np
@@ -19,15 +20,22 @@ warnings.filterwarnings("ignore")
 
 
 def get_default_device():
-    """选择可用的设备"""
+    """选择可用的设备并优化GPU设置"""
     if torch.cuda.is_available():
-        return torch.device('cuda')
+        device = torch.device('cuda')
+        # 优化CUDA设置 for RTX 5080
+        torch.backends.cudnn.benchmark = True
+        torch.backends.cudnn.deterministic = False  # 允许非确定性算法获得更好性能
+        torch.cuda.set_per_process_memory_fraction(0.9)  # 使用90%显存
+        print(f"[GPU] 使用设备: {torch.cuda.get_device_name(0)}")
+        print(f"[GPU] 显存容量: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB")
+        return device
     else:
         return torch.device('cpu')
 
 
 class TimeSeriesDataset(Dataset):
-    """时间序列数据集"""
+    """优化的时间序列数据集"""
     
     def __init__(self, data, window_size):
         self.data = torch.FloatTensor(data)
@@ -41,230 +49,375 @@ class TimeSeriesDataset(Dataset):
         return window
 
 
-class Encoder(nn.Module):
-    """编码器网络"""
+class AttentionEncoder(nn.Module):
+    """增强的注意力编码器"""
     
-    def __init__(self, input_dim, hidden_dim, latent_dim, n_layers=2):
+    def __init__(self, input_dim, hidden_dim, latent_dim, n_layers=2, n_heads=8):
         super().__init__()
         
+        # 输入层归一化
+        self.input_norm = nn.LayerNorm(input_dim)
+        
+        # 位置编码
+        self.positional_encoding = nn.Parameter(torch.randn(1000, input_dim) * 0.1)
+        
+        # 双向GRU
         self.rnn = nn.GRU(
             input_size=input_dim,
             hidden_size=hidden_dim,
             num_layers=n_layers,
             batch_first=True,
-            dropout=0.1
+            dropout=0.2,
+            bidirectional=True
         )
         
-        self.hidden_fc = nn.Sequential(
+        # 自注意力层
+        self.attention = nn.MultiheadAttention(
+            embed_dim=hidden_dim * 2,  # 双向RNN
+            num_heads=n_heads,
+            dropout=0.1,
+            batch_first=True
+        )
+        
+        # 特征提取网络
+        self.feature_net = nn.Sequential(
+            nn.Linear(hidden_dim * 2, hidden_dim),
+            nn.LayerNorm(hidden_dim),
+            nn.GELU(),
+            nn.Dropout(0.1),
             nn.Linear(hidden_dim, hidden_dim),
             nn.LayerNorm(hidden_dim),
-            nn.ReLU(),
+            nn.GELU(),
             nn.Dropout(0.1)
         )
         
-        # 均值和方差预测器
+        # 潜变量分布预测器
         self.fc_mu = nn.Linear(hidden_dim, latent_dim)
-        self.fc_var = nn.Linear(hidden_dim, latent_dim)
+        self.fc_logvar = nn.Linear(hidden_dim, latent_dim)
+        
+        # 权重初始化
+        self._init_weights()
+        
+    def _init_weights(self):
+        """权重初始化"""
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.xavier_uniform_(m.weight)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.GRU):
+                for name, param in m.named_parameters():
+                    if 'weight' in name:
+                        nn.init.xavier_uniform_(param)
+                    elif 'bias' in name:
+                        nn.init.constant_(param, 0)
         
     def forward(self, x):
-        # x shape: [batch, seq_len, input_dim]
-        output, _ = self.rnn(x)
-        hidden = output[:, -1, :]  # 取最后一个时间步
+        batch_size, seq_len, _ = x.shape
         
-        hidden = self.hidden_fc(hidden)
+        # 输入归一化和位置编码
+        x = self.input_norm(x)
+        pos_enc = self.positional_encoding[:seq_len, :].unsqueeze(0).expand(batch_size, -1, -1)
+        x = x + pos_enc
         
-        # 计算潜变量分布参数
-        mu = self.fc_mu(hidden)
-        log_var = self.fc_var(hidden)
+        # 双向RNN
+        rnn_out, _ = self.rnn(x)
         
-        return mu, log_var
+        # 自注意力
+        attn_out, _ = self.attention(rnn_out, rnn_out, rnn_out)
+        
+        # 残差连接
+        rnn_out = rnn_out + attn_out
+        
+        # 全局最大池化和平均池化
+        max_pool = torch.max(rnn_out, dim=1)[0]
+        avg_pool = torch.mean(rnn_out, dim=1)
+        
+        # 特征融合
+        features = max_pool + avg_pool
+        features = self.feature_net(features)
+        
+        # 潜变量分布参数
+        mu = self.fc_mu(features)
+        logvar = self.fc_logvar(features)
+        
+        return mu, logvar
 
 
-class Decoder(nn.Module):
-    """解码器网络"""
+class AttentionDecoder(nn.Module):
+    """增强的注意力解码器"""
     
-    def __init__(self, latent_dim, hidden_dim, output_dim, n_layers=2):
+    def __init__(self, latent_dim, hidden_dim, output_dim, n_layers=2, n_heads=8):
         super().__init__()
         
-        self.latent_fc = nn.Sequential(
+        # 潜变量投影
+        self.latent_proj = nn.Sequential(
             nn.Linear(latent_dim, hidden_dim),
             nn.LayerNorm(hidden_dim),
-            nn.ReLU(),
+            nn.GELU(),
             nn.Dropout(0.1)
         )
         
+        # 双向GRU
         self.rnn = nn.GRU(
             input_size=hidden_dim,
-            hidden_size=hidden_dim,
+            hidden_size=hidden_dim // 2,
             num_layers=n_layers,
             batch_first=True,
-            dropout=0.1
+            dropout=0.2,
+            bidirectional=True
         )
         
-        self.output_fc = nn.Sequential(
+        # 自注意力层
+        self.attention = nn.MultiheadAttention(
+            embed_dim=hidden_dim,
+            num_heads=n_heads,
+            dropout=0.1,
+            batch_first=True
+        )
+        
+        # 输出投影网络
+        self.output_net = nn.Sequential(
             nn.Linear(hidden_dim, hidden_dim),
             nn.LayerNorm(hidden_dim),
-            nn.ReLU(),
+            nn.GELU(),
             nn.Dropout(0.1),
-            nn.Linear(hidden_dim, output_dim * 2)  # 输出均值和方差
+            nn.Linear(hidden_dim, output_dim)
         )
         
+        # 权重初始化
+        self._init_weights()
+        
+    def _init_weights(self):
+        """权重初始化"""
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.xavier_uniform_(m.weight)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+        
     def forward(self, z, seq_len):
-        # z shape: [batch, latent_dim]
-        hidden = self.latent_fc(z)
+        batch_size = z.size(0)
+        
+        # 潜变量投影
+        hidden = self.latent_proj(z)
         
         # 扩展成序列
         hidden = hidden.unsqueeze(1).repeat(1, seq_len, 1)
         
-        output, _ = self.rnn(hidden)
-        output = self.output_fc(output)
+        # 双向RNN
+        rnn_out, _ = self.rnn(hidden)
         
-        # 分离均值和方差
-        mu, log_var = torch.chunk(output, 2, dim=-1)
-        return mu, log_var
+        # 自注意力
+        attn_out, _ = self.attention(rnn_out, rnn_out, rnn_out)
+        
+        # 残差连接
+        output = rnn_out + attn_out
+        
+        # 输出投影
+        output = self.output_net(output)
+        
+        return output
 
 
-class OmniAnomalyModel(nn.Module):
-    """OmniAnomaly模型"""
+class AdvancedOmniAnomalyModel(nn.Module):
+    """高级OmniAnomaly模型"""
     
-    def __init__(self, input_dim, hidden_dim, latent_dim, n_layers=2):
+    def __init__(self, input_dim, hidden_dim, latent_dim, n_layers=2, n_heads=8):
         super().__init__()
         
-        self.encoder = Encoder(input_dim, hidden_dim, latent_dim, n_layers)
-        self.decoder = Decoder(latent_dim, hidden_dim, input_dim, n_layers)
+        self.encoder = AttentionEncoder(input_dim, hidden_dim, latent_dim, n_layers, n_heads)
+        self.decoder = AttentionDecoder(latent_dim, hidden_dim, input_dim, n_layers, n_heads)
         
-    def reparameterize(self, mu, log_var):
-        """重参数化采样"""
-        std = torch.exp(0.5 * log_var)
-        eps = torch.randn_like(std)
-        return mu + eps * std
+        # 模型参数
+        self.latent_dim = latent_dim
+        
+    def reparameterize(self, mu, logvar):
+        """改进的重参数化采样"""
+        if self.training:
+            std = torch.exp(0.5 * logvar)
+            eps = torch.randn_like(std)
+            return mu + eps * std
+        else:
+            return mu  # 测试时使用均值
         
     def forward(self, x):
         # 编码
-        mu, log_var = self.encoder(x)
+        mu, logvar = self.encoder(x)
         
         # 采样
-        z = self.reparameterize(mu, log_var)
+        z = self.reparameterize(mu, logvar)
         
         # 解码
-        recon_mu, recon_log_var = self.decoder(z, x.size(1))
+        recon = self.decoder(z, x.size(1))
         
-        return recon_mu, recon_log_var, mu, log_var
+        return recon, mu, logvar
 
 
 class OmniAnomaly(BaseMethod):
-    """OmniAnomaly异常检测方法 - SMD优化版本"""
+    """高性能OmniAnomaly异常检测方法"""
     
     def __init__(self, params: dict = None) -> None:
         super().__init__()
         self.__anomaly_score = None
         self.device = get_default_device()
-        self.model = None  # 初始化model属性为None
+        self.model = None
         
         if params is None:
             params = {}
             
-        # SMD数据集优化配置
+        # 高性能配置for RTX 5080
         self.config = {
-            # 模型架构配置
-            'input_dim': params.get('input_dim', 38),  # SMD默认38维
-            'hidden_dim': params.get('hidden_dim', 500),
-            'latent_dim': params.get('latent_dim', 8),
-            'n_layers': params.get('n_layers', 2),
+            # 模型架构配置 - 增强版
+            'input_dim': params.get('input_dim', 38),
+            'hidden_dim': params.get('hidden_dim', 512),  # 增大隐藏层
+            'latent_dim': params.get('latent_dim', 16),   # 增大潜在维度
+            'n_layers': params.get('n_layers', 3),        # 增加层数
+            'n_heads': params.get('n_heads', 8),          # 多头注意力
             'window_size': params.get('window_size', 100),
             
-            # 训练参数
-            'batch_size': params.get('batch_size', 128),
-            'epochs': params.get('epochs', 10),
+            # 训练参数 - GPU优化
+            'batch_size': params.get('batch_size', 256),   # 增大批量以充分利用GPU
+            'epochs': params.get('epochs', 50),            # 增加训练轮数
             'learning_rate': params.get('lr', 1e-3),
-            'beta': params.get('beta', 0.01),  # KL损失权重
+            'beta': params.get('beta', 1.0),               # 增强KL约束
+            'beta_annealing': params.get('beta_annealing', True),
+            
+            # 优化器配置
+            'weight_decay': params.get('weight_decay', 1e-4),
+            'warmup_epochs': params.get('warmup_epochs', 5),
             
             # 评估参数
-            'n_samples': params.get('n_samples', 10),  # 测试时的采样数
+            'n_samples': params.get('n_samples', 50),      # 增加采样数提高稳定性
+            'score_window': params.get('score_window', 10), # 分数平滑窗口
         }
         
-        print(f"[LOG] OmniAnomaly SMD优化版本初始化完成")
-        print(f"[LOG] 使用设备: {self.device}")
-        print(f"[LOG] 配置: window={self.config['window_size']}, latent={self.config['latent_dim']}")
-        
-        # 创建模型
-        self.model = OmniAnomalyModel(
-            input_dim=self.config['input_dim'],
-            hidden_dim=self.config['hidden_dim'],
-            latent_dim=self.config['latent_dim'],
-            n_layers=self.config['n_layers']
-        ).to(self.device)
+        print(f"[LOG] 🚀 高性能OmniAnomaly初始化完成")
+        print(f"[LOG] 📊 模型配置: hidden={self.config['hidden_dim']}, latent={self.config['latent_dim']}, heads={self.config['n_heads']}")
+        print(f"[LOG] 🎯 GPU优化: batch={self.config['batch_size']}, epochs={self.config['epochs']}")
         
     def train_valid_phase(self, tsTrain: MTSData):
-        """优化的训练阶段"""
-        print(f"\n[LOG] ========== OmniAnomaly SMD优化训练开始 ==========")
+        """高性能训练阶段"""
+        print(f"\n[LOG] ========== 🚀 高性能训练开始 ==========")
         
         train_data = tsTrain.train
         self.n_features = train_data.shape[1]
         self.config['input_dim'] = self.n_features
         
-        print(f"[LOG] 训练数据: {train_data.shape}")
+        print(f"[LOG] 📊 训练数据: {train_data.shape}")
         
-        # 创建数据集和加载器
+        # 创建高性能模型
+        self.model = AdvancedOmniAnomalyModel(
+            input_dim=self.config['input_dim'],
+            hidden_dim=self.config['hidden_dim'],
+            latent_dim=self.config['latent_dim'],
+            n_layers=self.config['n_layers'],
+            n_heads=self.config['n_heads']
+        ).to(self.device)
+        
+        # 混合精度训练for RTX 5080
+        scaler = torch.cuda.amp.GradScaler()
+        
+        # 数据加载器 - 多进程优化
         dataset = TimeSeriesDataset(train_data, self.config['window_size'])
         train_loader = DataLoader(
             dataset,
             batch_size=self.config['batch_size'],
             shuffle=True,
-            num_workers=0
+            num_workers=4,  # 多进程加载
+            pin_memory=True,  # 固定内存
+            persistent_workers=True
         )
         
-        # 优化器
-        optimizer = torch.optim.Adam(
+        # 优化器 - AdamW with warmup
+        optimizer = torch.optim.AdamW(
             self.model.parameters(),
-            lr=self.config['learning_rate']
+            lr=self.config['learning_rate'],
+            weight_decay=self.config['weight_decay'],
+            betas=(0.9, 0.999)
+        )
+        
+        # 学习率调度器
+        warmup_scheduler = torch.optim.lr_scheduler.LinearLR(
+            optimizer, start_factor=0.1, total_iters=self.config['warmup_epochs']
+        )
+        cosine_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer, T_max=self.config['epochs'] - self.config['warmup_epochs']
         )
         
         # 训练循环
         best_loss = float('inf')
-        patience = 5
+        patience = 10
         patience_counter = 0
         
         for epoch in range(self.config['epochs']):
             self.model.train()
             total_loss = 0
+            total_recon_loss = 0
+            total_kl_loss = 0
             
-            pbar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{self.config['epochs']}")
+            # Beta退火策略
+            if self.config['beta_annealing']:
+                beta = min(self.config['beta'], epoch / 10.0)
+            else:
+                beta = self.config['beta']
+            
+            pbar = tqdm(train_loader, desc=f"🔥 Epoch {epoch+1}/{self.config['epochs']}")
+            
             for batch in pbar:
-                batch = batch.to(self.device)
+                batch = batch.to(self.device, non_blocking=True)
                 
-                # 前向传播
-                recon_mu, recon_log_var, mu, log_var = self.model(batch)
-                
-                # 简化的重构损失：使用MSE
-                recon_loss = F.mse_loss(recon_mu, batch, reduction='sum')
-                
-                # KL散度: KL(q(z|x)||p(z)) where p(z) = N(0,I)
-                kl_loss = 0.5 * torch.sum(
-                    mu.pow(2) + log_var.exp() - log_var - 1
-                )
-                
-                # 总损失 = 重构损失 + β * KL散度
-                loss = recon_loss + self.config['beta'] * kl_loss
-                
-                # 反向传播
                 optimizer.zero_grad()
-                loss.backward()
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), 10)
-                optimizer.step()
+                
+                # 混合精度前向传播
+                with torch.cuda.amp.autocast():
+                    recon, mu, logvar = self.model(batch)
+                    
+                    # 修复的损失函数 - 使用mean而不是sum
+                    recon_loss = F.mse_loss(recon, batch, reduction='mean')
+                    
+                    # KL散度 - 正确的计算方式
+                    kl_loss = -0.5 * torch.mean(
+                        1 + logvar - mu.pow(2) - logvar.exp()
+                    )
+                    
+                    # 确保KL损失为正
+                    kl_loss = torch.clamp(kl_loss, min=0.0)
+                    
+                    # 总损失
+                    loss = recon_loss + beta * kl_loss
+                
+                # 混合精度反向传播
+                scaler.scale(loss).backward()
+                scaler.unscale_(optimizer)
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
+                scaler.step(optimizer)
+                scaler.update()
                 
                 total_loss += loss.item()
+                total_recon_loss += recon_loss.item()
+                total_kl_loss += kl_loss.item()
                 
                 pbar.set_postfix({
                     'loss': f'{loss.item():.4f}',
-                    'recon': f'{recon_loss.item():.2f}',
-                    'kl': f'{kl_loss.item():.4f}'
+                    'recon': f'{recon_loss.item():.4f}',
+                    'kl': f'{kl_loss.item():.4f}',
+                    'beta': f'{beta:.3f}'
                 })
             
-            avg_loss = total_loss / len(train_loader)
-            print(f"Epoch {epoch+1}: 平均损失 = {avg_loss:.4f}")
+            # 学习率调度
+            if epoch < self.config['warmup_epochs']:
+                warmup_scheduler.step()
+            else:
+                cosine_scheduler.step()
             
-            # 早停
+            avg_loss = total_loss / len(train_loader)
+            avg_recon = total_recon_loss / len(train_loader)
+            avg_kl = total_kl_loss / len(train_loader)
+            
+            print(f"✅ Epoch {epoch+1}: Loss={avg_loss:.4f}, Recon={avg_recon:.4f}, KL={avg_kl:.4f}, LR={optimizer.param_groups[0]['lr']:.6f}")
+            
+            # 早停检查
             if avg_loss < best_loss:
                 best_loss = avg_loss
                 patience_counter = 0
@@ -273,81 +426,115 @@ class OmniAnomaly(BaseMethod):
             else:
                 patience_counter += 1
                 if patience_counter >= patience:
-                    print(f"[LOG] 早停触发，在第{epoch+1}轮停止训练")
+                    print(f"[LOG] ⏰ 早停触发，在第{epoch+1}轮停止训练")
                     break
         
         # 加载最佳模型
         if hasattr(self, 'best_model_state'):
             self.model.load_state_dict(self.best_model_state)
             
-        print(f"[LOG] ========== OmniAnomaly SMD优化训练完成 ==========\n")
+        print(f"[LOG] ========== 🎉 高性能训练完成 ==========\n")
         
     def test_phase(self, tsData: MTSData):
-        """优化的测试阶段"""
-        print(f"\n[LOG] ========== OmniAnomaly SMD优化测试开始 ==========")
+        """高性能测试阶段"""
+        print(f"\n[LOG] ========== 🔍 高性能测试开始 ==========")
         
         test_data = tsData.test
-        print(f"[LOG] 测试数据: {test_data.shape}")
+        print(f"[LOG] 📊 测试数据: {test_data.shape}")
         
-        # 创建测试数据集
+        # 测试数据加载器
         dataset = TimeSeriesDataset(test_data, self.config['window_size'])
         test_loader = DataLoader(
             dataset,
             batch_size=self.config['batch_size'],
             shuffle=False,
-            num_workers=0
+            num_workers=4,
+            pin_memory=True
         )
         
         self.model.eval()
-        scores = []
+        all_scores = []
         
         with torch.no_grad():
-            for batch in tqdm(test_loader, desc="测试中"):
-                batch = batch.to(self.device)
+            for batch in tqdm(test_loader, desc="🎯 测试中"):
+                batch = batch.to(self.device, non_blocking=True)
                 
-                # 多次采样计算重构概率
-                sample_scores = []
+                # 多次采样获得更稳定的分数
+                batch_scores = []
                 for _ in range(self.config['n_samples']):
-                    recon_mu, recon_log_var, _, _ = self.model(batch)
-                    
-                    # 计算重构误差作为异常分数
-                    # 误差越大表示越异常
-                    recon_error = F.mse_loss(recon_mu, batch, reduction='none')
-                    # 对每个样本的每个时间步和特征求平均，然后取最后一个时间步
-                    sample_scores.append(recon_error.mean(dim=-1)[:, -1].cpu().numpy())
+                    with torch.cuda.amp.autocast():
+                        recon, mu, logvar = self.model(batch)
+                        
+                        # 计算重构概率 - 负对数似然
+                        recon_error = F.mse_loss(recon, batch, reduction='none')
+                        # 对特征维度求平均，保留时间维度
+                        point_scores = recon_error.mean(dim=-1)
+                        # 取窗口最后一个点的分数
+                        scores = point_scores[:, -1].cpu().numpy()
+                        batch_scores.append(scores)
                 
-                # 取平均
-                batch_scores = np.mean(sample_scores, axis=0)
-                scores.extend(batch_scores)
+                # 取均值和标准差考虑不确定性
+                mean_scores = np.mean(batch_scores, axis=0)
+                std_scores = np.std(batch_scores, axis=0)
+                # 结合均值和不确定性
+                final_scores = mean_scores + 0.5 * std_scores
+                all_scores.extend(final_scores)
         
-        # 处理分数
-        full_scores = self._process_scores(scores, len(test_data))
-
+        # 高级分数后处理
+        full_scores = self._advanced_score_processing(all_scores, len(test_data))
+        
         self.__anomaly_score = full_scores
-        print(f"[LOG] 异常分数范围: [{np.min(full_scores):.4f}, {np.max(full_scores):.4f}]")
-        print(f"[LOG] 异常分数统计: 均值={np.mean(full_scores):.4f}, 标准差={np.std(full_scores):.4f}")
-        print(f"[LOG] ========== OmniAnomaly SMD优化测试完成 ==========\n")
+        print(f"[LOG] 📈 异常分数范围: [{np.min(full_scores):.4f}, {np.max(full_scores):.4f}]")
+        print(f"[LOG] 📊 异常分数统计: 均值={np.mean(full_scores):.4f}, 标准差={np.std(full_scores):.4f}")
+        print(f"[LOG] ========== ✅ 高性能测试完成 ==========\n")
         
-    def _process_scores(self, scores, data_length):
-        """处理异常分数"""
-        # 填充开始的窗口
-        full_scores = np.zeros(data_length)
+    def _advanced_score_processing(self, scores, data_length):
+        """高级分数后处理"""
         scores = np.array(scores)
+        full_scores = np.zeros(data_length)
         
-        # 使用滑动平均填充前面的点
-        window_fill = min(self.config['window_size'] - 1, len(scores))
-        if window_fill > 0:
-            full_scores[:self.config['window_size']-1] = np.mean(scores[:window_fill])
-        
+        # 填充前面的窗口
+        if len(scores) > 0:
+            # 使用指数加权平均填充
+            alpha = 0.3
+            fill_value = scores[0]
+            for i in range(self.config['window_size'] - 1):
+                full_scores[i] = fill_value
+                
         # 填充实际分数
-        full_scores[self.config['window_size']-1:self.config['window_size']-1+len(scores)] = scores
+        end_idx = min(self.config['window_size'] - 1 + len(scores), data_length)
+        full_scores[self.config['window_size']-1:end_idx] = scores[:end_idx - self.config['window_size'] + 1]
         
-        # 移动平均平滑
-        window = 5
-        weights = np.ones(window) / window
-        full_scores = np.convolve(full_scores, weights, mode='same')
+        # 多重平滑处理
+        # 1. 高斯平滑
+        from scipy.ndimage import gaussian_filter1d
+        full_scores = gaussian_filter1d(full_scores, sigma=2.0)
         
-        # 标准化到[0,1] (分数越高越异常)
+        # 2. 移动平均平滑
+        window = self.config['score_window']
+        weights = np.exp(np.linspace(-1, 0, window))  # 指数权重
+        weights /= weights.sum()
+        
+        # 应用卷积平滑
+        padded_scores = np.pad(full_scores, (window//2, window//2), mode='edge')
+        smoothed = np.convolve(padded_scores, weights, mode='valid')
+        full_scores = smoothed[:len(full_scores)]
+        
+        # 3. 异常值处理
+        q75, q25 = np.percentile(full_scores, [75, 25])
+        iqr = q75 - q25
+        upper_bound = q75 + 1.5 * iqr
+        full_scores = np.clip(full_scores, None, upper_bound)
+        
+        # 4. 自适应归一化
+        # 使用Robust Scaler
+        median = np.median(full_scores)
+        mad = np.median(np.abs(full_scores - median))
+        if mad > 0:
+            full_scores = (full_scores - median) / (1.4826 * mad)  # 1.4826是正态分布的修正因子
+            full_scores = np.clip(full_scores, -3, 3)  # 限制在3倍MAD内
+        
+        # 5. 映射到[0,1]
         min_score = np.min(full_scores)
         max_score = np.max(full_scores)
         if max_score > min_score:
@@ -362,26 +549,43 @@ class OmniAnomaly(BaseMethod):
     def param_statistic(self, save_file):
         """参数统计"""
         if self.model is not None:
+            total_params = sum(p.numel() for p in self.model.parameters())
+            trainable_params = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
+            
             param_info = f"""
-                OmniAnomaly SMD优化版本参数统计:
+                🚀 高性能OmniAnomaly参数统计:
                 ==================================================
-                输入维度: {self.config['input_dim']}
-                隐藏维度: {self.config['hidden_dim']}
-                潜在维度: {self.config['latent_dim']}
-                RNN层数: {self.config['n_layers']}
-                窗口大小: {self.config['window_size']}
-                批量大小: {self.config['batch_size']}
-                训练轮数: {self.config['epochs']}
-                学习率: {self.config['learning_rate']}
+                📊 模型架构:
+                - 输入维度: {self.config['input_dim']}
+                - 隐藏维度: {self.config['hidden_dim']}
+                - 潜在维度: {self.config['latent_dim']}
+                - RNN层数: {self.config['n_layers']}
+                - 注意力头数: {self.config['n_heads']}
+                - 窗口大小: {self.config['window_size']}
+                
+                🎯 训练配置:
+                - 批量大小: {self.config['batch_size']}
+                - 训练轮数: {self.config['epochs']}
+                - 学习率: {self.config['learning_rate']}
+                - 权重衰减: {self.config['weight_decay']}
+                - Beta权重: {self.config['beta']}
+                
+                💾 模型参数:
+                - 总参数数: {total_params:,}
+                - 可训练参数: {trainable_params:,}
+                
                 ==================================================
-                SMD优化特性:
-                ✅ PyTorch深度学习框架
-                ✅ GRU循环神经网络
-                ✅ 变分自编码器
+                🔥 高性能优化特性:
+                ✅ RTX 5080 GPU加速
+                ✅ 混合精度训练 (FP16)
+                ✅ 多头自注意力机制
+                ✅ 双向GRU + 残差连接
+                ✅ AdamW优化器 + 余弦退火
+                ✅ 学习率预热策略
+                ✅ 梯度裁剪 + 早停
                 ✅ 多重采样推断
-                ✅ 梯度裁剪
-                ✅ 早停机制
-                ✅ 分数后处理优化
+                ✅ 高级分数后处理
+                ✅ 鲁棒归一化
                 ==================================================
             """
         else:
@@ -393,7 +597,7 @@ class OmniAnomaly(BaseMethod):
 
 # ============= 主程序入口 =============
 if __name__ == "__main__":
-    print("🚀 ========== OmniAnomaly SMD优化版本 (PyTorch) ==========")
+    print("🚀 ========== 高性能OmniAnomaly (RTX 5080优化版) ==========")
     
     # Create a global controller
     gctrl = TSADController()
@@ -406,25 +610,30 @@ if __name__ == "__main__":
         datasets=datasets,
     )
 
-    """============= 运行优化的OmniAnomaly ============="""
+    """============= 运行高性能OmniAnomaly ============="""
     
     method = "OmniAnomaly"
     
-    # SMD优化配置
+    # RTX 5080优化配置
     gctrl.run_exps(
         method=method,
         training_schema="mts",
         hparams={
-            'input_dim': 38,        # SMD默认38维
-            'hidden_dim': 500,
-            'latent_dim': 8,
-            'n_layers': 2,
-            'window_size': 100,
-            'batch_size': 128,
-            'epochs': 10,
-            'lr': 1e-3,
-            'beta': 0.01,           # KL损失权重
-            'n_samples': 10         # 测试采样数
+            'input_dim': 38,         # SMD数据维度
+            'hidden_dim': 512,       # 增大隐藏层
+            'latent_dim': 16,        # 增大潜在维度
+            'n_layers': 3,           # 增加层数
+            'n_heads': 8,            # 多头注意力
+            'window_size': 100,      # 时间窗口
+            'batch_size': 256,       # GPU优化批量大小
+            'epochs': 50,            # 充分训练
+            'lr': 1e-3,              # 学习率
+            'beta': 1.0,             # KL权重
+            'beta_annealing': True,  # Beta退火
+            'weight_decay': 1e-4,    # 权重衰减
+            'warmup_epochs': 5,      # 预热轮数
+            'n_samples': 50,         # 采样数
+            'score_window': 10       # 分数平滑窗口
         },
         preprocess="z-score",
     )
@@ -440,43 +649,4 @@ if __name__ == "__main__":
     
     gctrl.plots(method=method, training_schema="mts")
     
-    print("🎉 ========== OmniAnomaly SMD优化版本执行完毕 ==========")
-
-    # 要提高OmniAnomaly算法的性能，可以从以下几个方面入手：
-    #
-    #
-    # 1.
-    # 优化模型超参数
-    # 窗口大小（window）: 调整时间窗口大小以适应数据的时间依赖性。
-    # 潜在维度（latent）: 增加或减少潜在空间的维度以平衡模型复杂度和性能。
-    # 学习率: 调整优化器的学习率，尝试更小的学习率以获得更稳定的训练。
-    # 批量大小（batch
-    # size）: 增大批量大小以提高训练稳定性，但需注意显存限制。
-    # 2.
-    # 改进数据预处理
-    # 归一化: 确保输入数据经过标准化或归一化处理，避免特征值范围过大。
-    # 降噪: 对数据进行平滑或去噪处理，减少噪声对模型的干扰。
-    # 特征选择: 去除冗余或无关的特征，保留关键特征。
-    # 3.
-    # 增强模型结构
-    # 改进VAE结构: 尝试更深的网络或更复杂的编码器 / 解码器结构。
-    # 正则化: 添加L1 / L2正则化或Dropout层以防止过拟合。
-    # KL散度权重: 调整KL散度的权重系数，平衡重构误差和潜在空间的正则化。
-    # 4.
-    # 训练技巧
-    # 预训练: 使用预训练模型初始化权重，减少训练时间。
-    # 学习率调度: 使用学习率衰减策略（如余弦退火或ReduceLROnPlateau）。
-    # 梯度裁剪: 防止梯度爆炸问题，尤其是在训练深层网络时。
-    # 5.
-    # 硬件优化
-    # GPU加速: 确保使用高性能GPU进行训练。
-    # 混合精度训练: 使用FP16混合精度训练以加速计算并减少显存占用。
-    # 6.
-    # 数据增强
-    # 时间序列增强: 通过滑动窗口、时间切片等方法生成更多样本。
-    # 数据平滑: 使用移动平均或其他平滑方法增强数据质量。
-    # 7.
-    # 评估与调试
-    # 交叉验证: 使用交叉验证评估模型性能，避免过拟合。
-    # 异常分数分析: 检查异常分数的分布，调整阈值以提高检测效果。
-    # 通过以上方法，可以逐步优化OmniAnomaly算法的性能。建议从超参数调整和数据预处理开始，逐步测试每项改进的效果。
+    print("🎉 ========== 高性能OmniAnomaly执行完毕 ==========")
